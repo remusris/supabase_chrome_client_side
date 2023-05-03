@@ -1,34 +1,53 @@
 import React from "react";
 import "@pages/popup/Popup.css";
-import type { User } from "@supabase/supabase-js"
-import { useState, useEffect } from "react"
+import type { User } from "@supabase/supabase-js";
+import { useState, useEffect } from "react";
 
 const chromeStorageKeys = {
   supabaseAccessToken: "supabaseAccessToken",
   supabaseRefreshToken: "supabaseRefreshToken",
   supabaseUserData: "supabaseUserData",
-  supabaseExpiration: "supabaseExpiration"
-}
+  supabaseExpiration: "supabaseExpiration",
+};
 
 function IndexOptions() {
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [expiration, setExpiration] = useState(0)
-  const [user, setUser] = useState<User>(null)
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [expiration, setExpiration] = useState(0);
+  const [user, setUser] = useState<User>(null);
 
   //new useEffect
   useEffect(() => {
-    chrome.storage.sync.get([
-      chromeStorageKeys.supabaseAccessToken, 
-      chromeStorageKeys.supabaseExpiration, 
-      chromeStorageKeys.supabaseUserData], 
+    chrome.storage.sync.get(
+      [
+        chromeStorageKeys.supabaseAccessToken,
+        chromeStorageKeys.supabaseExpiration,
+        chromeStorageKeys.supabaseUserData,
+      ],
       (result) => {
         if (result && result[chromeStorageKeys.supabaseAccessToken]) {
           const currentTime = Date.now() / 1000; // convert to seconds
-          if (result[chromeStorageKeys.supabaseExpiration] > currentTime) {
+          const timeUntilExpiration =
+            result[chromeStorageKeys.supabaseExpiration] - currentTime;
+
+          if (timeUntilExpiration > 0) {
             // Token is not expired, set user data and expiration
             setUser(result[chromeStorageKeys.supabaseUserData]);
             setExpiration(result[chromeStorageKeys.supabaseExpiration]);
+
+            if (timeUntilExpiration < 24 * 60 * 60) {
+              // less than 24 hours left
+              // Token is about to expire, request a refresh
+              chrome.runtime.sendMessage({ action: "refresh" }, (response) => {
+                if (response.error) {
+                  console.log("Error refreshing token: " + response.error);
+                } else {
+                  console.log("Token refreshed successfully");
+                  setUser(response.data.user);
+                  setExpiration(response.data.session.expires_at);
+                }
+              });
+            }
           } else {
             // Token is expired
             console.log("Session expired");
@@ -49,7 +68,7 @@ function IndexOptions() {
             alert("Error with auth: " + response.error.message);
           } else if (response.data?.user) {
             setUser(response.data.user);
-            setExpiration(response.data.session.expires_at);            
+            setExpiration(response.data.session.expires_at);
           }
         }
       );
@@ -58,7 +77,7 @@ function IndexOptions() {
       alert(error.error_description || error);
     }
   }
-  
+
   async function handleSignup(username: string, password: string) {
     try {
       // Send a message to the background script to initiate the signup
@@ -81,14 +100,17 @@ function IndexOptions() {
   async function handleSignout() {
     try {
       // Send a message to the background script to initiate the signout
-      chrome.runtime.sendMessage({ action: "signout", value: null }, (response) => {
-        if (response.error) {
-          alert("Error signing out: " + response.error.message);
-        } else {
-          setUser(null);
-          setExpiration(0);
+      chrome.runtime.sendMessage(
+        { action: "signout", value: null },
+        (response) => {
+          if (response.error) {
+            alert("Error signing out: " + response.error.message);
+          } else {
+            setUser(null);
+            setExpiration(0);
+          }
         }
-      });
+      );
     } catch (error) {
       console.log("error", error);
       alert(error.error_description || error);
@@ -148,7 +170,29 @@ function IndexOptions() {
       )}
     </div>
   );
-
 }
 
-export default IndexOptions
+export default IndexOptions;
+
+//
+/* useEffect(() => {
+  chrome.storage.sync.get([
+    chromeStorageKeys.supabaseAccessToken, 
+    chromeStorageKeys.supabaseExpiration, 
+    chromeStorageKeys.supabaseUserData], 
+    (result) => {
+      if (result && result[chromeStorageKeys.supabaseAccessToken]) {
+        const currentTime = Date.now() / 1000; // convert to seconds
+        if (result[chromeStorageKeys.supabaseExpiration] > currentTime) {
+          // Token is not expired, set user data and expiration
+          setUser(result[chromeStorageKeys.supabaseUserData]);
+          setExpiration(result[chromeStorageKeys.supabaseExpiration]);
+        } else {
+          // Token is expired
+          console.log("Session expired");
+          // Handle session expiration: redirect to login, show a message, etc.
+        }
+      }
+    }
+  );
+}, []); */

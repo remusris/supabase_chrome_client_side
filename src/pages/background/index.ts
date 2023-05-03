@@ -16,17 +16,16 @@ import {createClient} from "@supabase/supabase-js"
 export const supabase = createClient(
     env.SUPABASE_URL, env.SUPABASE_KEY
 )
-
 type Message = {
-    action: 'getSession' | 'signout',
-    value: null
-  } | {
-    action: 'signup' | 'signin',
-    value: {
-      email: string,
-      password: string,
-    }
+  action: 'getSession' | 'signout' | 'refresh',
+  value: null
+} | {
+  action: 'signup' | 'signin',
+  value: {
+    email: string,
+    password: string,
   }
+}
   
 type ResponseCallback = (data: any) => void
 
@@ -86,12 +85,33 @@ async function handleMessage({ action, value }: Message, response: ResponseCallb
         } else {
           response({ error: error?.message || 'Signout failed' });
         }
-      }
+      } else if (action === 'refresh') {
+        chrome.storage.sync.get(chromeStorageKeys.supabaseRefreshToken, async (result) => {
+          const refreshToken = result[chromeStorageKeys.supabaseRefreshToken];
+          if (refreshToken) {
+            const { data, error } = await supabase.auth.refreshSession(refreshToken);
+            if (data) {
+              chrome.storage.sync.set({
+                [chromeStorageKeys.supabaseAccessToken]: data.session.access_token,
+                [chromeStorageKeys.supabaseRefreshToken]: data.session.refresh_token,
+                [chromeStorageKeys.supabaseUserData]: data.user,
+                [chromeStorageKeys.supabaseExpiration]: data.session.expires_at
+              }, () => {
+                console.log("User data refreshed in chrome.storage.sync");
+              });
+              response({ data, error });
+            } else {
+              response({ data: null, error: 'Refresh failed' });
+            }
+          } else {
+            response({ data: null, error: 'No refresh token available' });
+          }
+        });
   } 
+}
 
-
-// @ts-ignore
+//@ts-ignore
 chrome.runtime.onMessage.addListener((msg, sender, response) => {
     handleMessage(msg, response);
     return true;
-  })
+});
