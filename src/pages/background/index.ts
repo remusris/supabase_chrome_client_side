@@ -12,11 +12,9 @@ console.log("background loaded");
 
 import {createClient} from "@supabase/supabase-js"
 
-const SUPABASE_URL = "https://xmduxigoopgpitwcmbud.supabase.co"
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtZHV4aWdvb3BncGl0d2NtYnVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODI0NjExMjIsImV4cCI6MTk5ODAzNzEyMn0.L_QutBA50HRPuSSvKwGtIj6L5FjE4GYwuQ3Ujwrehqs"
 
 export const supabase = createClient(
-    SUPABASE_URL, SUPABASE_KEY
+    env.SUPABASE_URL, env.SUPABASE_KEY
 )
 
 type Message = {
