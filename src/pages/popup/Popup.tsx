@@ -17,48 +17,49 @@ function IndexOptions() {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
 
-  //new useEffect
-  /* useEffect(() => {
-    chrome.storage.sync.get(
-      [
-        chromeStorageKeys.supabaseAccessToken,
-        chromeStorageKeys.supabaseExpiration,
-        chromeStorageKeys.supabaseUserData,
-      ],
-      (result) => {
-        if (result && result[chromeStorageKeys.supabaseAccessToken]) {
-          const currentTime = Date.now() / 1000; // convert to seconds
-          const timeUntilExpiration =
-            result[chromeStorageKeys.supabaseExpiration] - currentTime;
+  const [title, setTitle] = useState("");
+  const [method, setMethod] = useState("");
+  const [rating, setRating] = useState("");
+  const [formError, setFormError] = useState("");
 
-          if (timeUntilExpiration > 0) {
-            // Token is not expired, set user data and expiration
-            setUser(result[chromeStorageKeys.supabaseUserData]);
-            setExpiration(result[chromeStorageKeys.supabaseExpiration]);
+  //tutorial code
+  const [fetchError, setFetchError] = useState(null);
+  const [smoothies, setSmoothies] = useState(null);
 
-            if (timeUntilExpiration < 24 * 60 * 60) {
-              // less than 24 hours left
-              // Token is about to expire, request a refresh
-              chrome.runtime.sendMessage({ action: "refresh" }, (response) => {
-                if (response.error) {
-                  console.log("Error refreshing token: " + response.error);
-                } else {
-                  console.log("Token refreshed successfully");
-                  console.log("data", response.data);
-                  setUser(response.data.user);
-                  setExpiration(response.data.session.expires_at);
-                }
-              });
-            }
-          } else {
-            // Token is expired
-            console.log("Session expired");
-            // Handle session expiration: redirect to login, show a message, etc.
-          }
-        }
+  const [smoothiesLoading, setSmoothiesLoading] = useState(true);
+
+  useEffect(() => {
+    // Send a message to the background script to fetch smoothies
+    chrome.runtime.sendMessage({ action: "fetchSmoothies" }, (response) => {
+      if (response.error) {
+        setFetchError("Could not fetch the smoothies");
+        setSmoothies(null);
+        console.log(response.error);
+      } else {
+        setSmoothies(response.data);
+        console.log("smoothie data", response.data);
+        setFetchError(null);
       }
-    );
-  }, []); */
+      setSmoothiesLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    // Send a message to the background script to fetch smoothies
+    chrome.runtime.sendMessage({ action: "fetchTopics" }, (response) => {
+      if (response.error) {
+        setFetchError("Could not fetch the smoothies");
+        setSmoothies(null);
+        console.log(response.error);
+      } else {
+        setSmoothies(response.data);
+        console.log("topics data", response.data);
+        setFetchError(null);
+      }
+      setSmoothiesLoading(false);
+    });
+  }, []);
+
   useEffect(() => {
     chrome.storage.sync.get(
       [
@@ -189,18 +190,106 @@ function IndexOptions() {
     }
   }
 
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!title || !method || !rating) {
+      setFormError("All fields must be filled in.");
+      return;
+    }
+
+    const ratingAsNumber = Number(rating);
+    if (isNaN(ratingAsNumber)) {
+      setFormError("Rating must be a number.");
+      return;
+    }
+
+    // Send a message to the background script to add a smoothie
+    chrome.runtime.sendMessage(
+      { action: "addSmoothie", value: { title, method, rating } },
+      (response) => {
+        if (response.error) {
+          setFormError("Error adding smoothie: " + response.error.message);
+        } else {
+          setTitle("");
+          setMethod("");
+          setRating("");
+          setFormError("");
+          // Refresh smoothies
+          chrome.runtime.sendMessage(
+            { action: "fetchSmoothies" },
+            (response) => {
+              if (response.error) {
+                setFetchError("Could not fetch the smoothies");
+                setSmoothies(null);
+              } else {
+                setSmoothies(response.data);
+                setFetchError(null);
+              }
+              setSmoothiesLoading(false); // Add this line
+            }
+          );
+        }
+      }
+    );
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: 16 }}>
       {loading ? (
         <div>Loading...</div>
       ) : user ? (
-        <div>
-          {user.email} - {user.id}
-          <br />
-          Token Expiration: {new Date(expiration * 1000).toLocaleString()}
-          <button onClick={handleSignout}>Sign out</button>
-          <button onClick={handleRefresh}>Refresh Token</button>
-        </div>
+        <>
+          <div>
+            {user.email} - {user.id}
+            <br />
+            Token Expiration: {new Date(expiration * 1000).toLocaleString()}
+            <button onClick={handleSignout}>Sign out</button>
+            <button onClick={handleRefresh}>Refresh Token</button>
+          </div>
+          {smoothiesLoading ? (
+            <div>Loading smoothies...</div>
+          ) : smoothies ? (
+            <div>
+              <h3>Smoothies:</h3>
+              <ul>
+                {smoothies.map((smoothie: any) => (
+                  <li key={smoothie.id}>
+                    {smoothie.title} - {smoothie.method} - {smoothie.rating}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div>{fetchError ? fetchError : "No smoothies found"}</div>
+          )}
+          <div>
+            <h3>Add a new smoothie:</h3>
+            <form onSubmit={handleSubmit}>
+              <label>Title:</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <br />
+              <label>Method:</label>
+              <input
+                type="text"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+              />
+              <br />
+              <label>Rating:</label>
+              <input
+                type="text"
+                value={rating}
+                onChange={(e) => setRating(e.target.value)}
+              />
+              <br />
+              <button type="submit">Add Smoothie</button>
+            </form>
+            {formError && <div>{formError}</div>}
+          </div>
+        </>
       ) : (
         <div>
           <div className="mb-4">
@@ -247,83 +336,3 @@ function IndexOptions() {
 }
 
 export default IndexOptions;
-
-//another example of older useEffect code
-
-//older useEffect code
-/* useEffect(() => {
-  chrome.storage.sync.get([
-    chromeStorageKeys.supabaseAccessToken, 
-    chromeStorageKeys.supabaseExpiration, 
-    chromeStorageKeys.supabaseUserData], 
-    (result) => {
-      if (result && result[chromeStorageKeys.supabaseAccessToken]) {
-        const currentTime = Date.now() / 1000; // convert to seconds
-        if (result[chromeStorageKeys.supabaseExpiration] > currentTime) {
-          // Token is not expired, set user data and expiration
-          setUser(result[chromeStorageKeys.supabaseUserData]);
-          setExpiration(result[chromeStorageKeys.supabaseExpiration]);
-        } else {
-          // Token is expired
-          console.log("Session expired");
-          // Handle session expiration: redirect to login, show a message, etc.
-        }
-      }
-    }
-  );
-}, []); */
-
-/* return (
-  <div style={{ display: "flex", flexDirection: "column", padding: 16 }}>
-    {user && (
-      <div>
-        {user.email} - {user.id}
-        <br />
-        Token Expiration: {new Date(expiration * 1000).toLocaleString()}
-        <button onClick={handleSignout}>Sign out</button>
-        <button onClick={handleRefresh}>Refresh Token</button>
-      </div>
-    )}
-    {!user && (
-      <div>
-        <div className="mb-4">
-          <label>Email</label>
-          <input
-            type="text"
-            placeholder="Your Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </div>
-        <div className="mb-4">
-          <label>Password</label>
-          <input
-            type="password"
-            placeholder="Your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleSignup(username, password);
-            }}
-          >
-            Sign up
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleLogin(username, password);
-            }}
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-); */

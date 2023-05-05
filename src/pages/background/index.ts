@@ -28,6 +28,18 @@ type Message =
         email: string;
         password: string;
       };
+    }
+  | {
+      action: "addSmoothie";
+      value: {
+        title: string;
+        method: string;
+        rating: number;
+      };
+    }
+  | {
+      action: "fetchSmoothies";
+      value: null;
     };
 
 type ResponseCallback = (data: any) => void;
@@ -135,6 +147,31 @@ async function handleMessage(
         }
       }
     );
+  } else if (action === "fetchSmoothies") {
+    const { data, error } = await supabase.from("smoothies").select();
+
+    if (error) {
+      response({
+        data: null,
+        error: error.message || "Fetching smoothies failed",
+      });
+    } else {
+      response({ data, error: null });
+    }
+  } else if (action === "addSmoothie") {
+    try {
+      const { title, method, rating } = value;
+      const { data, error } = await supabase
+        .from("smoothies")
+        .insert([{ title, method, rating }]);
+      if (error) {
+        response({ error: error.message, data: null });
+      } else {
+        response({ error: null, data: data });
+      }
+    } catch (error) {
+      response({ error: error.message, data: null });
+    }
   }
 }
 
