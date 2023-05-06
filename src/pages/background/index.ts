@@ -211,6 +211,7 @@ chrome.runtime.onMessage.addListener((msg, sender, response) => {
   return true;
 });
 
+// this failed super hard
 /* chrome.history.onVisited.addListener(async function (historyItem) {
   console.log("historyItem inside");
   const { error } = await supabase
@@ -220,50 +221,6 @@ chrome.runtime.onMessage.addListener((msg, sender, response) => {
   if (error) {
     console.log("error", error);
   }
-});
- */
-
-/* chrome.history.onVisited.addListener(async function (historyItem) {
-  console.log("historyItem inside");
-
-  const SUPABASE_URL =
-    "https://xmduxigoopgpitwcmbud.supabase.co/rest/v1/url_uploader";
-
-  // Get the supabaseAccessToken from chrome.storage.sync
-  chrome.storage.sync.get(
-    chromeStorageKeys.supabaseAccessToken,
-    async (result) => {
-      const supabaseAccessToken = result[chromeStorageKeys.supabaseAccessToken];
-      console.log("supabaseAccessToken", supabaseAccessToken);
-      console.log("historyItem inside 2");
-
-      if (!supabaseAccessToken) {
-        console.error("No Supabase access token found");
-        return;
-      }
-
-      try {
-        const response = await fetch(SUPABASE_URL, {
-          method: "POST",
-          headers: {
-            apikey: supabaseAccessToken,
-            Authorization: `Bearer ${supabaseAccessToken}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-          body: JSON.stringify({ url: historyItem.url }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        console.log("URL uploaded successfully:", historyItem.url);
-      } catch (error) {
-        console.error("Error uploading URL:", error.message);
-      }
-    }
-  );
 });
  */
 
