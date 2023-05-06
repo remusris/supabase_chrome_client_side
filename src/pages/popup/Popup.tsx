@@ -26,6 +26,9 @@ function IndexOptions() {
   const [fetchError, setFetchError] = useState(null);
   const [smoothies, setSmoothies] = useState(null);
 
+  const [topics, setTopics] = useState(null);
+  const [topicsLoading, setTopicsLoading] = useState(true);
+
   const [smoothiesLoading, setSmoothiesLoading] = useState(true);
 
   useEffect(() => {
@@ -45,18 +48,18 @@ function IndexOptions() {
   }, []);
 
   useEffect(() => {
-    // Send a message to the background script to fetch smoothies
+    // Send a message to the background script to fetch topics
     chrome.runtime.sendMessage({ action: "fetchTopics" }, (response) => {
       if (response.error) {
-        setFetchError("Could not fetch the smoothies");
-        setSmoothies(null);
+        setFetchError("Could not fetch the topics");
+        setTopics(null); // Assuming you have a state for topics
         console.log(response.error);
       } else {
-        setSmoothies(response.data);
+        setTopics(response.data);
         console.log("topics data", response.data);
         setFetchError(null);
       }
-      setSmoothiesLoading(false);
+      setTopicsLoading(false); // Assuming you have a state for topicsLoading
     });
   }, []);
 
@@ -232,6 +235,7 @@ function IndexOptions() {
       }
     );
   }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: 16 }}>
       {loading ? (
@@ -260,6 +264,22 @@ function IndexOptions() {
             </div>
           ) : (
             <div>{fetchError ? fetchError : "No smoothies found"}</div>
+          )}
+          {topicsLoading ? (
+            <div>Loading topics...</div>
+          ) : topics ? (
+            <div>
+              <h3>Topics:</h3>
+              <ul>
+                {topics.map((topic: any) => (
+                  <li key={topic.id}>
+                    {topic.title} - {topic.description}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div>{fetchError ? fetchError : "No topics found"}</div>
           )}
           <div>
             <h3>Add a new smoothie:</h3>

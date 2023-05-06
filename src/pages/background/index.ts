@@ -10,6 +10,8 @@ reloadOnUpdate("pages/content/style.scss");
 
 console.log("background loaded");
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://xmduxigoopgpitwcmbud.supabase.co";
@@ -40,6 +42,10 @@ type Message =
   | {
       action: "fetchSmoothies";
       value: null;
+    }
+  | {
+      action: "fetchTopics";
+      value: null;
     };
 
 type ResponseCallback = (data: any) => void;
@@ -55,6 +61,19 @@ async function handleMessage(
   { action, value }: Message,
   response: ResponseCallback
 ) {
+  /* const getSupabaseClient = async (): Promise<SupabaseClient> => {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(
+        chromeStorageKeys.supabaseAccessToken,
+        (result) => {
+          const accessToken = result[chromeStorageKeys.supabaseAccessToken];
+          const supabase = createClient(SUPABASE_URL, accessToken);
+          resolve(supabase);
+        }
+      );
+    });
+  }; */
+
   if (action === "signin") {
     console.log("requesting auth");
     const { data, error } = await supabase.auth.signInWithPassword(value);
@@ -172,6 +191,17 @@ async function handleMessage(
     } catch (error) {
       response({ error: error.message, data: null });
     }
+  } else if (action === "fetchTopics") {
+    const { data, error } = await supabase.from("topics").select();
+
+    if (error) {
+      response({
+        data: null,
+        error: error.message || "Fetching topics failed",
+      });
+    } else {
+      response({ data, error: null });
+    }
   }
 }
 
@@ -180,3 +210,117 @@ chrome.runtime.onMessage.addListener((msg, sender, response) => {
   handleMessage(msg, response);
   return true;
 });
+
+/* chrome.history.onVisited.addListener(async function (historyItem) {
+  console.log("historyItem inside");
+  const { error } = await supabase
+    .from("url_uploader")
+    .insert([{ url: historyItem.url }]);
+
+  if (error) {
+    console.log("error", error);
+  }
+});
+ */
+
+/* chrome.history.onVisited.addListener(async function (historyItem) {
+  console.log("historyItem inside");
+
+  const SUPABASE_URL =
+    "https://xmduxigoopgpitwcmbud.supabase.co/rest/v1/url_uploader";
+
+  // Get the supabaseAccessToken from chrome.storage.sync
+  chrome.storage.sync.get(
+    chromeStorageKeys.supabaseAccessToken,
+    async (result) => {
+      const supabaseAccessToken = result[chromeStorageKeys.supabaseAccessToken];
+      console.log("supabaseAccessToken", supabaseAccessToken);
+      console.log("historyItem inside 2");
+
+      if (!supabaseAccessToken) {
+        console.error("No Supabase access token found");
+        return;
+      }
+
+      try {
+        const response = await fetch(SUPABASE_URL, {
+          method: "POST",
+          headers: {
+            apikey: supabaseAccessToken,
+            Authorization: `Bearer ${supabaseAccessToken}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ url: historyItem.url }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        console.log("URL uploaded successfully:", historyItem.url);
+      } catch (error) {
+        console.error("Error uploading URL:", error.message);
+      }
+    }
+  );
+});
+ */
+
+chrome.history.onVisited.addListener(async function (historyItem) {
+  console.log("historyItem inside");
+
+  const SUPABASE_URL =
+    "https://xmduxigoopgpitwcmbud.supabase.co/rest/v1/url_uploader";
+
+  try {
+    // Get the supabaseAccessToken from chrome.storage.sync
+    chrome.storage.sync.get(
+      chromeStorageKeys.supabaseAccessToken,
+      async (result) => {
+        const supabaseAccessToken =
+          result[chromeStorageKeys.supabaseAccessToken];
+        console.log("supabaseAccessToken", supabaseAccessToken);
+        console.log("historyItem inside 2");
+
+        if (!supabaseAccessToken) {
+          console.error("No Supabase access token found");
+          return;
+        }
+
+        try {
+          const response = await fetch(SUPABASE_URL, {
+            method: "POST",
+            headers: {
+              apikey: SUPABASE_KEY,
+              Authorization: `Bearer ${supabaseAccessToken}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({ url: historyItem.url }),
+          });
+
+          if (!response.ok) {
+            const errorResponse = await response.json();
+            console.error("Error response:", errorResponse);
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          console.log("URL uploaded successfully:", historyItem.url);
+        } catch (error) {
+          console.error("Error uploading URL:", error.message);
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error fetching Supabase access token:", error.message);
+  }
+});
+
+/* chrome.storage.sync.get(
+  chromeStorageKeys.supabaseAccessToken,
+  async (result) => {
+    const accessToken = result[chromeStorageKeys.supabaseAccessToken];
+    console.log("refresh token to input", accessToken);
+  }
+); */
