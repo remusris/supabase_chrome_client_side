@@ -64,7 +64,7 @@ function IndexOptions() {
   }, []);
 
   useEffect(() => {
-    chrome.storage.sync.get(
+    chrome.storage.local.get(
       [
         chromeStorageKeys.supabaseAccessToken,
         chromeStorageKeys.supabaseExpiration,
